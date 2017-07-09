@@ -123,8 +123,10 @@ variable_cnt = 0
 
 main_instruct = []
 my_instruct_list = []
+addr_list=[]
+addr_instruct_dict={}
+asm_str = ""
 ###
-
 
 
 ea = BeginEA() # Binary 부분을 받아옵니다.
@@ -135,14 +137,19 @@ for funcea in Functions(SegStart(ea), SegEnd(ea)): # section 주소를 받아옵
         for (startea, endea) in Chunks(funcea): # 함수의 시작주소와 끝나는 주소를 알아옵니다.
             for head in Heads(startea, endea): 
                 main_instruct.append(GetDisasm(head)) # ASM instruction을 받아옵니다.
-                my_instruct_list.append(main_instruct[list_cnt].split())
+                my_instruct_list.append(main_instruct[list_cnt].split()) # code내용을 긁어옵니다 (처리 필요)
+                addr_list.append(hex(head)[:-1]) # 주소를 addr_list에 저장합니다
                 list_cnt += 1
-asm_str = ""
+
 
 for i in range(0,len(my_instruct_list)):
-    asm_str += ' '.join(my_instruct_list[i]) + '\n'
+    asm_str += ' '.join(my_instruct_list[i]) + '\n' # code내용을 처리하여 다 합칩니다
+
 
 asm_str = asm_str.split("\n") # '\n' 을 기준으로 잘라 리스트를 생성합니다.
+
+for i in range(0,len(my_instruct_list)): # 
+    addr_instruct_dict[addr_list[i]] = asm_str[i] # 코드 주소 : 코드 내용 을 가지는 딕셔너리를 생성합니다
 
 asm_str = delete_stack(asm_str) # 스택프레임을 제거합니다.
 

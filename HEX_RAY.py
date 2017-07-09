@@ -31,7 +31,6 @@ class Decompile:
         self.c_code.append("}")
         
     def decom_call(self):
-        # push가 아닌 mov [esp+x] 로 파라미터 받을 때도 함수호출 제대로 디컴파일하는 부분 추가해야 함
         call_lib = re.compile('call _.*')
         call_user = re.compile('call ^_.*')
         index = 0
@@ -75,14 +74,14 @@ def delete_stack(asm):
     global block_stack_str_intro
     global block_stack_str_outro
 
-    for item in block_stack_str_intro: # deleting intro
+    for item in block_stack_str_intro: # intro부분의 스택포인터를 찾아서 제거합니다
         for num in range(len(asm)):
             if len(asm)-1 <= num:
                 break
             if asm[num] == item:
                 asm.pop(num)
                 num=num-1
-    for item in block_stack_str_outro: # deleting outro
+    for item in block_stack_str_outro: # outro 부분의 스택포인터를 찾아서 제거합니다
         for num in range(len(asm)):
             if len(asm) <= num:
                 break
@@ -90,16 +89,16 @@ def delete_stack(asm):
                 asm.pop(num)
                 num=num-1
 
-    sub_esp=re.compile('sub esp, \d*') # to remove [sub esp, <number>]
-    add_esp=re.compile('add esp, \d*') # to remove [add esp, <number>]
+    sub_esp=re.compile('sub esp, \d*') # [sub esp, <number>] 를 찾는 정규식 저 형태이면 match 가 리턴 아니면 None 리턴
+    add_esp=re.compile('add esp, \d*') # [add esp, <number>] 를 찾는 정규식 저 형태이면 match 가 리턴 아니면 None 리턴
 
     for num in range(len(asm)):   
         if len(asm) <= num:
             break
-        if add_esp.match(asm[num]):
+        if add_esp.match(asm[num]): # [sub esp, <number>] 형태이면 match를 받아서 제거
             asm.pop(num)
             num=num-1
-        if sub_esp.match(asm[num]):
+        if sub_esp.match(asm[num]): # [add esp, <number>] 형태이면 match를 받아서 제거
             asm.pop(num)
             num=num-1
     return asm
@@ -128,15 +127,14 @@ my_instruct_list = []
 
 
 
-ea = BeginEA() #get binary section
+ea = BeginEA() # Binary 부분을 받아옵니다.
 list_cnt = 0
-for funcea in Functions(SegStart(ea), SegEnd(ea)): #get section address
-    functionName = GetFunctionName(funcea) #get function name of address
+for funcea in Functions(SegStart(ea), SegEnd(ea)): # section 주소를 받아옵니다.
+    functionName = GetFunctionName(funcea) # 해당 함수의 이름을 받아옵니다.
     if functionName == 'main':
-        for (startea, endea) in Chunks(funcea): #get start,end address of function
+        for (startea, endea) in Chunks(funcea): # 함수의 시작주소와 끝나는 주소를 알아옵니다.
             for head in Heads(startea, endea): 
-                main_instruct.append(GetDisasm(head)) #get asm instruction.
-                a = magicstring(main_instruct[list_cnt])
+                main_instruct.append(GetDisasm(head)) # ASM instruction을 받아옵니다.
                 my_instruct_list.append(main_instruct[list_cnt].split())
                 list_cnt += 1
 asm_str = ""
@@ -144,9 +142,9 @@ asm_str = ""
 for i in range(0,len(my_instruct_list)):
     asm_str += ' '.join(my_instruct_list[i]) + '\n'
 
-asm_str = asm_str.split("\n") # split by line
+asm_str = asm_str.split("\n") # '\n' 을 기준으로 잘라 리스트를 생성합니다.
 
-asm_str = delete_stack(asm_str) # removing stack frame
+asm_str = delete_stack(asm_str) # 스택프레임을 제거합니다.
 
 ##### 여기까지 오면 스택프레임을 제외하고 디컴파일에 필요한 어셈블리 코드 리스트가 asm_str에 들어가게 되었습니다. 
 
@@ -161,5 +159,5 @@ decompiled_info.decom_call() # 함수 call 디컴파일
 디컴파일 내용 부분
 '''
 decompiled_info.make_shape_of_main() #
-for code_line in decompiled_info.c_code:
-    print code_line
+
+for code_line in decompiled_info.c_code: # 한줄 한줄 출력하는 부분

@@ -1,4 +1,4 @@
-#-*- coding: utf-8 -*-
+﻿#-*- coding: utf-8 -*-
 
 from idautils import *
 from idaapi import *
@@ -11,11 +11,14 @@ block_stack_str_outro = ["call ___stack_chk_fail","leave","lea esp, [ecx-4]","le
 
 
 class Decompile:
-    def __init__(self, assembly_list):
+    def __init__(self, assembly_list, assembly_dict):
+        self.assembly_dict = assembly_dict
         self.assembly_command = assembly_list
         self.c_code = [] # 디컴파일된 C코드를 라인별로 저장할 리스트입니다.
-        self.user_function =[] # 코드에서 호출되는 함수정보를 따로 저장합니다. 함수 명이 _로 시작되는 것과 아닌 것으로 구분하여 사용자 정의 함수인지 구분 가능함.
-        self.library_function =[]        
+        self.user_function = [] # 코드에서 호출되는 함수정보를 따로 저장합니다. 함수 명이 _로 시작되는 것과 아닌 것으로 구분하여 사용자 정의 함수인지 구분 가능함.
+        self.library_function = []
+        self.variable = []
+        self.variable_init_instruction = []
     
     
     def make_shape_of_main(self): # 디컴파일 작업 맨 마지막 부분에 할 것
@@ -65,7 +68,43 @@ class Decompile:
                 
                 self.c_code.append(function_name + str(arg_list).replace("[","(").replace("]",")"))
                 
-            index += 1        
+            index += 1
+    
+    
+    def pop_variable_info(self): # 변수들만 뽑아내서 리스트에 저장합니다.
+        for command in self.assembly_command:
+            if "var" in command:
+                index = command.find("var")
+                self.variable.append(command[index:index+6].replace("]","").replace(",",""))
+        
+        self.variable = list(set(self.variable))
+    
+    def decom_variable_initialize(self): # 위에서부터 읽어서 변수에 확정값을 넣는 행위가 가장 먼저 나오면 그 값으로 초기화, 아닌 경우 그냥 초기화만
+        # 디컴파일 작업 맨 처음 부분에 할 것, 변수 초기화 먼저 포함시킴
+        self.pop_variable_info()
+        var_init = re.compile("[0-9].*")
+        var_noninit = re.compile("[^0-9].*")
+        for var in self.variable:
+            for command in self.assembly_command:
+                check = False
+                if command.find(var) != -1:
+                    
+                    if var_noninit.match(command.split(",")[1].strip()): # 값을 넣긴 하지만 확정값이 아니라면 초기화만
+                        self.variable_init_instruction.append(var+";")
+                        check = True
+                        break
+                    
+                    if var_init.match(command.split(",")[1].strip()): # 확정값을 넣는 부분을 찾으면 그 값으로 초기화하는 코드를 구현
+                        value = command.split(",")[1].strip()
+                        self.variable_init_instruction.append(var+" = "+value+";")
+                        check = True
+                        break
+                    
+                    
+            if check == False:
+                self.variable_init_instruction.append(var+";")
+
+        self.c_code += self.variable_init_instruction        
 
 
 
@@ -101,6 +140,7 @@ def delete_stack(asm):
         if sub_esp.match(asm[num]): # [add esp, <number>] 형태이면 match를 받아서 제거
             asm.pop(num)
             num=num-1
+            
     return asm
 
 def check_var(asm):
@@ -156,8 +196,10 @@ asm_str = delete_stack(asm_str) # 스택프레임을 제거합니다.
 ##### 여기까지 오면 스택프레임을 제외하고 디컴파일에 필요한 어셈블리 코드 리스트가 asm_str에 들어가게 되었습니다. 
 
 
-decompiled_info = Decompile(asm_str)
+decompiled_info = Decompile(asm_str, addr_instruct_dict)
 
+
+decompiled_info.decom_variable_initialize() # 변수 초기화
 '''
 디컴파일 내용 부분
 '''
@@ -166,6 +208,7 @@ decompiled_info.decom_call() # 함수 call 디컴파일
 디컴파일 내용 부분
 '''
 decompiled_info.make_shape_of_main() #
+
 
 for code_line in decompiled_info.c_code: # 한줄 한줄 출력하는 부분
     print code_line

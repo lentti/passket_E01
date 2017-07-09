@@ -161,3 +161,4 @@ decompiled_info.decom_call() # 함수 call 디컴파일
 decompiled_info.make_shape_of_main() #
 
 for code_line in decompiled_info.c_code: # 한줄 한줄 출력하는 부분
+    print code_line

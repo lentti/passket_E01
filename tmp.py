@@ -6,10 +6,6 @@ from idc import *
 import re
 import sys
    
-block_stack_str_intro = ["lea ecx, [esp+4]","and esp, 0FFFFFFF0h","push dword ptr [ecx-4]","push ebp","mov ebp, esp","push ecx","mov eax, large gs:14h"]
-block_stack_str_outro = ["call ___stack_chk_fail","leave","lea esp, [ecx-4]","lea esp, [ecx-4]","retn","mov ecx, [ebp+var_4]"]
-
-    
 class Decompile:
   def __init__(self, assembly_list, assembly_dict, addr_list):
     self.assembly_dict = assembly_dict
@@ -120,38 +116,32 @@ class Decompile:
 
 
 def delete_stack(asm):
-  global block_stack_str_intro
-  global block_stack_str_outro
+    stackFrameIntro=re.compile('mov eax, large gs:[a-z0-9]*')
+    stackFrameOutro=re.compile('xor edx, large gs:[a-z0-9]*')
+    for i in range(len(asm)):
+        if stackFrameIntro.match(asm[i]):
+            for j in range(i+1):
+                asm.pop(0)
+            break
+    for i in range(len(asm)):
+        if stackFrameOutro.match(asm[i]):
+            for j in range(i, len(asm)):
+                asm.pop(i)
+            break
+    subESP=re.compile('sub esp, \d*') # [sub esp, <number>] 를 찾는 정규식 저 형태이면 match 가 리턴 아니면 None 리턴
+    addESP=re.compile('add esp, \d*') # [add esp, <number>] 를 찾는 정규식 저 형태이면 match 가 리턴 아니면 None 리턴
 
-  for item in block_stack_str_intro: # intro부분의 스택포인터를 찾아서 제거합니다
-    for num in range(len(asm)):
-      if len(asm)-1 <= num:
-        break
-      if asm[num] == item:
-        asm.pop(num)
-        num=num-1
-  for item in block_stack_str_outro: # outro 부분의 스택포인터를 찾아서 제거합니다
-    for num in range(len(asm)):
-      if len(asm) <= num:
-        break
-      if asm[num] == item:
-        asm.pop(num)
-        num=num-1
-
-  sub_esp=re.compile('sub esp, \d*') # [sub esp, <number>] 를 찾는 정규식 저 형태이면 match 가 리턴 아니면 None 리턴
-  add_esp=re.compile('add esp, \d*') # [add esp, <number>] 를 찾는 정규식 저 형태이면 match 가 리턴 아니면 None 리턴
-
-  for num in range(len(asm)):   
-    if len(asm) <= num:
-      break
-    if add_esp.match(asm[num]): # [sub esp, <number>] 형태이면 match를 받아서 제거
-      asm.pop(num)
-      num=num-1
-    if sub_esp.match(asm[num]): # [add esp, <number>] 형태이면 match를 받아서 제거
-      asm.pop(num)
-      num=num-1
-          
-  return asm
+    for num in range(len(asm)):   
+        if len(asm) <= num:
+            break
+        if addESP.match(asm[num]): # [sub esp, <number>] 형태이면 match를 받아서 제거
+            asm.pop(num)
+            num=num-1
+        if subESP.match(asm[num]): # [add esp, <number>] 형태이면 match를 받아서 제거
+            asm.pop(num)
+            num=num-1
+            
+    return asm
 
 def check_var(asm):
   global variable_cnt

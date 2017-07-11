@@ -145,6 +145,8 @@ class Decompile:
                         parse += repr(argv)+','
                 parse += ")"
                 parse = parse.replace(',)',")")
+                parse = parse.replace("\'","\"")
+                parse += ';'
                 self.c_code.append(parse)
                 self.c_code_dict[cur_argv] = parse
 
@@ -197,6 +199,10 @@ class Decompile:
 
                     if var_init.match(GetDisasm(asm_addr).split(",")[1].strip()): # 확정값을 넣는 부분을 찾으면 그 값으로 초기화하는 코드를 구현
                         value = GetDisasm(asm_addr).split(",")[1].strip()
+                        if value[-1] == 'h':
+                            for i in range (8-len(value)+1):
+                                value='0'+value
+                            value = '0x' + value[:-1]
                         self.variable_init_instruction.append(var+" = "+value+";")
                         self.c_code_dict[asm_addr] = var+" = "+value+";"
                         
@@ -210,7 +216,30 @@ class Decompile:
                 amount_of_var_init +=1
                 
 
-        self.c_code += self.variable_init_instruction        
+        self.c_code += self.variable_init_instruction   
+
+    def cvrtAsmToC(self, asm_addr):
+        cmd=GetMnem(asm_addr).strip()
+        opnd1=GetOpnd(asm_addr,0)
+        opnd2=GetOpnd(asm_addr,1)
+        if cmd == 'mov':
+            if opnd1[:4] == '[ebp':
+                opnd1=opnd1[5:-1]
+            if opnd2[:4] == '[ebp':
+                opnd2=opnd2[5:-1]
+            return opnd1 + ' = *(' + opnd2 +');'
+        if cmd == 'lea':
+            if opnd1[:4] == '[ebp':
+                opnd1=opnd1[5:-1]
+            if opnd2[:4] == '[ebp':
+                opnd2=opnd2[5:-1]
+            return opnd1 + ' = ' + opnd2 +';'
+        if cmd == 'xor':
+            if opnd1[:4] == '[ebp':
+                opnd1=opnd1[5:-1]
+            if opnd2[:4] == '[ebp':
+                opnd2=opnd2[5:-1]
+            return opnd1 + ' = ' + opnd1 + ' ^ '+ opnd2 +';'
 
 
 ########################실제로 기능을 하는 부분 ######### 클래스와 함수 선언 종료.
@@ -275,3 +304,7 @@ for code_line in decompiled_info.c_code: # 한줄 한줄 출력하는 부분
 
 for code_addr in sorted(decompiled_info.c_code_dict.keys()):
     print "%08x :"%code_addr, decompiled_info.c_code_dict[code_addr]
+
+
+###################
+# dcmp= decompiled_info = Decompile(asm_str, addr_instruct_dict,addr_list)

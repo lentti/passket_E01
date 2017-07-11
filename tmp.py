@@ -1,11 +1,57 @@
 ﻿#-*- coding: utf-8 -*-
-
 from idautils import *
 from idaapi import *
 from idc import *
 import re
 import sys
    
+
+
+
+def delete_stack(asm): # 스택프레임 제거 함수
+    stackFrameIntro=re.compile('mov eax, large gs:[a-z0-9]*')
+    stackFrameOutro=re.compile('xor edx, large gs:[a-z0-9]*')
+    for i in range(len(asm)):
+        if stackFrameIntro.match(asm[i]):
+            for j in range(i+1):
+                asm.pop(0)
+            break
+    for i in range(len(asm)):
+        if stackFrameOutro.match(asm[i]):
+            for j in range(i, len(asm)):
+                asm.pop(i)
+            break
+    subESP=re.compile('sub esp, \d*') # [sub esp, <number>] 를 찾는 정규식 저 형태이면 match 가 리턴 아니면 None 리턴
+    addESP=re.compile('add esp, \d*') # [add esp, <number>] 를 찾는 정규식 저 형태이면 match 가 리턴 아니면 None 리턴
+
+    for num in range(len(asm)):   
+        if len(asm) <= num:
+            break
+        if addESP.match(asm[num]): # [sub esp, <number>] 형태이면 match를 받아서 제거
+            asm.pop(num)
+            num=num-1
+        if subESP.match(asm[num]): # [add esp, <number>] 형태이면 match를 받아서 제거
+            asm.pop(num)
+            num=num-1
+            
+    return asm
+
+####################이거 두개 함수 어디에 쓰는지 설명 추가바람
+def check_var(asm):
+  global variable_cnt
+  if asm.find("[ebp+var") >= 0:
+    var_str = 'v'+str(variable_cnt)
+    variable_cnt += 1
+    return var_str
+  else:
+    return asm
+
+def delete_coma(asm):
+  return asm.replace(',',"")
+########################################################
+
+
+############################# 디컴파일 클래스 
 class Decompile:
   def __init__(self, assembly_list, assembly_dict, addr_list):
     self.assembly_dict = assembly_dict
@@ -113,47 +159,7 @@ class Decompile:
     self.c_code += self.variable_init_instruction        
 
 
-
-
-def delete_stack(asm):
-    stackFrameIntro=re.compile('mov eax, large gs:[a-z0-9]*')
-    stackFrameOutro=re.compile('xor edx, large gs:[a-z0-9]*')
-    for i in range(len(asm)):
-        if stackFrameIntro.match(asm[i]):
-            for j in range(i+1):
-                asm.pop(0)
-            break
-    for i in range(len(asm)):
-        if stackFrameOutro.match(asm[i]):
-            for j in range(i, len(asm)):
-                asm.pop(i)
-            break
-    subESP=re.compile('sub esp, \d*') # [sub esp, <number>] 를 찾는 정규식 저 형태이면 match 가 리턴 아니면 None 리턴
-    addESP=re.compile('add esp, \d*') # [add esp, <number>] 를 찾는 정규식 저 형태이면 match 가 리턴 아니면 None 리턴
-
-    for num in range(len(asm)):   
-        if len(asm) <= num:
-            break
-        if addESP.match(asm[num]): # [sub esp, <number>] 형태이면 match를 받아서 제거
-            asm.pop(num)
-            num=num-1
-        if subESP.match(asm[num]): # [add esp, <number>] 형태이면 match를 받아서 제거
-            asm.pop(num)
-            num=num-1
-            
-    return asm
-
-def check_var(asm):
-  global variable_cnt
-  if asm.find("[ebp+var") >= 0:
-    var_str = 'v'+str(variable_cnt)
-    variable_cnt += 1
-    return var_str
-  else:
-    return asm
-
-def delete_coma(asm):
-  return asm.replace(',',"")
+########################실제로 기능을 하는 부분 ######### 클래스와 함수 선언 종료.
 
 ### 초기화와 사전작업
 print "############run#############"
@@ -192,6 +198,8 @@ for i in range(0,len(my_instruct_list)): #
   addr_instruct_dict[addr_list[i]] = asm_str[i] # 코드 주소 : 코드 내용 을 가지는 딕셔너리를 생성합니다
 
 asm_str = delete_stack(asm_str) # 스택프레임을 제거합니다.
+
+
 
 ##### 여기까지 오면 스택프레임을 제외하고 디컴파일에 필요한 어셈블리 코드 리스트가 asm_str에 들어가게 되었습니다. 
 

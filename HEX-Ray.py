@@ -104,8 +104,8 @@ class Decompile:
                 #while push_arg.match(self.assembly_command[push_search_cnt]): # call 명령어부터 거꾸로 올라가면서 push된 값들을 찾습니다.                  
                 while GetMnem(cur_argv) == 'push':
                     #argument = self.assembly_command[push_search_cnt].replace("push", "").strip()
-                    argument = GetOpnd(cur_argv,0)
-                    if argument == "eax":
+                    argument = GetOperandValue(cur_argv,0)
+                    if argument == 0:
                         eax_search_cnt=push_search_cnt-1
 
                         while True:
@@ -127,9 +127,14 @@ class Decompile:
                                 eax_search_cnt=eax_search_cnt-1
 
                 # print argument[0]
-
-
-                    arg_list.append(argument)
+                    if type(argument) == int or type(argument)==long:
+                        if GetOpType(cur_argv,0) == 4:
+                            arg_list.append(GetOpnd(cur_argv,0))
+                        else:
+                            #print GetDisasm(cur_argv)
+                            arg_list.append(GetString(argument))
+                    else:
+                        arg_list.append(argument)
                     #push_search_cnt -= 1               
                     cur_argv = PrevHead(cur_argv)
 

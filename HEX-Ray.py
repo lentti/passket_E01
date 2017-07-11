@@ -129,7 +129,7 @@ class Decompile:
                 # print argument[0]
                     if type(argument) == int or type(argument)==long:
                         if GetOpType(cur_argv,0) == 4:
-                            arg_list.append(GetOpnd(cur_argv,0))
+                            arg_list.append(GetOpnd(cur_argv,0).replace("[ebp+","").replace("]",""))
                         else:
                             #print GetDisasm(cur_argv)
                             arg_list.append(GetString(argument))
@@ -137,9 +137,16 @@ class Decompile:
                         arg_list.append(argument)
                     #push_search_cnt -= 1               
                     cur_argv = PrevHead(cur_argv)
-
-                self.c_code.append(function_name + str(arg_list).replace("[","(").replace("]",")"))
-                self.c_code_dict[cur_argv] = function_name + str(arg_list).replace("[","(").replace("]",")")
+                parse = function_name+"("
+                for argv in arg_list:
+                    if argv.find('var') != -1:
+                        parse += argv + ','
+                    else:
+                        parse += "\"" + repr(argv) + "\","
+                parse += ")"
+                parse = parse.replace(',)',")")
+                self.c_code.append(parse)
+                self.c_code_dict[cur_argv] = parse
 
             if GetMnem(command) == 'call' and call_user.match(GetOpnd(command,0)):
                 #function_name = command.replace("call", "").strip()

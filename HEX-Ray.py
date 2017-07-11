@@ -72,7 +72,7 @@ class Decompile:
         while cur_asm != self.addr_list[0]: # return value를 찾기 위한 작업입니다. 종료시점에 eax 값을 찾아내기 위해 거꾸로 올라갑니다.
             #if ret_some.match(self.assembly_command[loop_cnt-1]):
             if GetMnem(cur_asm) == 'mov' and GetOpnd(cur_asm,0) == 'eax':
-                print GetDisasm(cur_asm)
+                #print GetDisasm(cur_asm)
                 #self.c_code.append("return" + self.assembly_command[loop_cnt-1].split(",")[1] + ";") 
                 self.c_code.append("return"+GetOpnd(cur_asm,1)+";")
                 self.c_code_dict[cur_asm] = "return "+GetOpnd(cur_asm,1)+";"

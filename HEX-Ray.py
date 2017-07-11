@@ -142,7 +142,7 @@ class Decompile:
                     if argv.find('var') != -1:
                         parse += argv + ','
                     else:
-                        parse += "\"" + repr(argv) + "\","
+                        parse += repr(argv)+','
                 parse += ")"
                 parse = parse.replace(',)',")")
                 self.c_code.append(parse)

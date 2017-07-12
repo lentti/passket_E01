@@ -115,6 +115,102 @@ class Decompile:
 
                                 if GetMnem(eax_search_addr)=="mov":
                                     argument=GetOpnd(eax_search_addr,1).replace("[ebp+","").replace("]","")
+                                    #===========================================
+                                    if "eax" in argument:
+                                        call_search_cnt=eax_search_cnt
+
+                                        while True:
+                                            call_search_addr=self.addr_list[call_search_cnt]
+                                            #print call_search_addr
+                                            if GetMnem(call_search_addr)=="call":
+                                                calc_addr=self.addr_list[call_search_cnt+1]
+                                                break
+                                            else:
+                                                call_search_cnt=call_search_cnt-1
+                                        #print GetMnem(calc_addr)
+
+                                        top_search_cnt=eax_search_cnt
+                                        while self.addr_list[top_search_cnt] > calc_addr:
+                                            top_search_cnt-=1
+                                        top_search_cnt+=1
+                                        i=0
+                                        candargs={}
+                                        while GetMnem(top_search_cnt)!="push" and GetOpnd(self.addr_list[top_search_cnt],0)!="esp":
+                                            if GetMnem(self.addr_list[top_search_cnt])=="mov":
+                                                if GetOpnd(self.addr_list[top_search_cnt],0) in candargs:
+                                                    if GetOpnd(self.addr_list[top_search_cnt],1) in candargs:
+                                                        candargs[GetOpnd(self.addr_list[top_search_cnt],0)]=candargs[GetOpnd(self.addr_list[top_search_cnt],1)]
+                                                    else:
+                                                        if GetOpnd(self.addr_list[top_search_cnt],1)!="[eax]":
+                                                            candargs[GetOpnd(self.addr_list[top_search_cnt],0)]=GetOpnd(self.addr_list[top_search_cnt],1)
+                                                else:
+                                                    if GetOpnd(self.addr_list[top_search_cnt],1) in candargs:
+                                                        candargs.update({GetOpnd(self.addr_list[top_search_cnt],0):candargs[GetOpnd(self.addr_list[top_search_cnt],1)]})
+                                                    else:
+                                                        candargs.update({GetOpnd(self.addr_list[top_search_cnt],0):GetOpnd(self.addr_list[top_search_cnt],1)})
+
+                                                #candargs.update({GetOpnd(self.addr_list[top_search_cnt],0):GetOpnd(self.addr_list[top_search_cnt],1).replace("[ebp+","").replace("]","")})
+                                                    #eax=GetOpnd(self.addr_list[top_search_cnt],1).replace("[ebp+","").replace("]","")
+                                                    #candargs.append(GetOpnd(self.addr_list[top_search_cnt],1).replace("[ebp+","").replace("]",""))
+                                                        
+
+                                                    
+                                            elif GetMnem(self.addr_list[top_search_cnt])=="not":
+                                                #if GetOpnd(self.addr_list[top_search_cnt],0) in candargs:
+                                                candargs[GetOpnd(self.addr_list[top_search_cnt],0)]="~"+candargs[GetOpnd(self.addr_list[top_search_cnt],0)]
+                                                    
+                                                #else:
+                                                 #   varargs="~"+varargs
+                                            elif GetMnem(self.addr_list[top_search_cnt])=="lea":
+                                                if GetOpnd(self.addr_list[top_search_cnt],0) in candargs:
+                                                    if "[ebp" in GetOpnd(self.addr_list[top_search_cnt],1):
+                                                        candargs[GetOpnd(self.addr_list[top_search_cnt],0)]=GetOpnd(self.addr_list[top_search_cnt],1).replace("[ebp+","").replace("]","")
+                                                    else:
+                                                        candargs[GetOpnd(self.addr_list[top_search_cnt],0)]=GetOpnd(self.addr_list[top_search_cnt],1)
+                                                else:
+                                                    lea_cre=GetOpnd(self.addr_list[top_search_cnt],1)[1:4]
+                                                    fn_lea_op1=candargs[lea_cre].replace("var_","")
+                                                    fn_lea_op2=GetOpnd(self.addr_list[top_search_cnt],1)[5:].replace("]","")
+                                                    lea_ds=hex(int(fn_lea_op1,16)-int(fn_lea_op2,16)).replace("0x","")
+                                                    #print fn_lea_op1
+                                                    #print fn_lea_op2
+                                                    candargs.update({GetOpnd(self.addr_list[top_search_cnt],0):"&[var_"+str(lea_ds)+"]"})
+                                                    
+                                                    #if GetOpnd(self.addr_list[top_search_cnt],1) in candargs:
+                                                    #candargs.update({GetOpnd(self.addr_list[top_search_cnt],0):candargs[GetOpnd(self.addr_list[top_search_cnt],1)]})
+                                                    #else:
+                                                        #candargs.update({GetOpnd(self.addr_list[top_search_cnt],0):GetOpnd(self.addr_list[top_search_cnt],1)})
+
+                                            elif GetMnem(self.addr_list[top_search_cnt])=="test":
+                                                if GetOpnd(self.addr_list[top_search_cnt],0) in candargs:
+                                                    if candargs[GetOpnd(self.addr_list[top_search_cnt],0)] == 0:
+                                                        candargs["eax"]=str(1)
+                                                        
+                                                    else:
+                                                        candargs["eax"]=str(0)
+                                                        
+                                                #top_search_cnt+=2
+                                            elif GetMnem(self.addr_list[top_search_cnt])=="add":
+                                                candargs[GetOpnd(self.addr_list[top_search_cnt],0)]+="+"+str(candargs[GetOpnd(self.addr_list[top_search_cnt],1)])
+
+                                            elif GetMnem(self.addr_list[top_search_cnt])=="or":
+                                                candargs[GetOpnd(self.addr_list[top_search_cnt],0)]+="||"+candargs[GetOpnd(self.addr_list[top_search_cnt],1)]
+                                            elif GetMnem(self.addr_list[top_search_cnt])=="xor":
+                                                candargs[GetOpnd(self.addr_list[top_search_cnt],0)]+="^"+candargs[GetOpnd(self.addr_list[top_search_cnt],1)]
+                                            else:
+                                                top_search_cnt+=1
+                                            
+                                            #print GetMnem(self.addr_list[top_search_cnt])
+                                            top_search_cnt+=1
+                                        #print candargs[eax]
+                                        argument=candargs["eax"]
+
+                                                #if GetOpnd(self.addr_list[top_search_cnt],0) in candargs:
+
+
+
+
+
                                 elif GetMnem(eax_search_addr)=="lea":
                                     if GetMnem(self.addr_list[eax_search_cnt+1])=="add":
                                         lea_op1=GetOpnd(eax_search_addr,1).replace("[ebp+var_","").replace("]","")
@@ -145,8 +241,6 @@ class Decompile:
                         parse += repr(argv)+','
                 parse += ")"
                 parse = parse.replace(',)',")")
-                parse = parse.replace("\'","\"")
-                parse += ';'
                 self.c_code.append(parse)
                 self.c_code_dict[cur_argv] = parse
 
@@ -168,7 +262,6 @@ class Decompile:
                 self.c_code.append(function_name + str(arg_list).replace("[","(").replace("]",")"))
                 self.c_code_dict[cur_argv] = function_name + str(arg_list).replace("[","(").replace("]",")")
             index += 1
-
 
     def pop_variable_info(self): # 변수들만 뽑아내서 리스트에 저장합니다.
         for command in self.assembly_command:
@@ -198,9 +291,9 @@ class Decompile:
                         break
 
                     if var_init.match(GetDisasm(asm_addr).split(",")[1].strip()): # 확정값을 넣는 부분을 찾으면 그 값으로 초기화하는 코드를 구현
-                        value = GetOperandValue(asm_addr,1)
-                        self.variable_init_instruction.append(var+" = "+hex(value)+";")
-                        self.c_code_dict[asm_addr] = var+" = "+hex(value)+";"
+                        value = GetDisasm(asm_addr).split(",")[1].strip()
+                        self.variable_init_instruction.append(var+" = "+value+";")
+                        self.c_code_dict[asm_addr] = var+" = "+value+";"
                         
                         check = True
                         break
@@ -208,34 +301,11 @@ class Decompile:
 
             if check == False:  # 변수가 많은 경우에는 이런 구현이 문제가 될 수 있습니다.
                 self.variable_init_instruction.append(var+";")
-                self.assembly_dict[addr_list[0]+amount_of_var_init] = var+" = "+hex(value)+";"
+                self.assembly_dict[addr_list[0]+amount_of_var_init] = var+" = "+value+";"
                 amount_of_var_init +=1
                 
 
-        self.c_code += self.variable_init_instruction   
-
-    def cvrtAsmToC(self, asm_addr):
-        cmd=GetMnem(asm_addr).strip()
-        opnd1=GetOpnd(asm_addr,0)
-        opnd2=GetOpnd(asm_addr,1)
-        if cmd == 'mov':
-            if opnd1[:4] == '[ebp':
-                opnd1=opnd1[5:-1]
-            if opnd2[:4] == '[ebp':
-                opnd2=opnd2[5:-1]
-            return opnd1 + ' = *(' + opnd2 +');'
-        if cmd == 'lea':
-            if opnd1[:4] == '[ebp':
-                opnd1=opnd1[5:-1]
-            if opnd2[:4] == '[ebp':
-                opnd2=opnd2[5:-1]
-            return opnd1 + ' = ' + opnd2 +';'
-        if cmd == 'xor':
-            if opnd1[:4] == '[ebp':
-                opnd1=opnd1[5:-1]
-            if opnd2[:4] == '[ebp':
-                opnd2=opnd2[5:-1]
-            return opnd1 + ' = ' + opnd1 + ' ^ '+ opnd2 +';'
+        self.c_code += self.variable_init_instruction        
 
 
 ########################실제로 기능을 하는 부분 ######### 클래스와 함수 선언 종료.
@@ -300,7 +370,3 @@ for code_line in decompiled_info.c_code: # 한줄 한줄 출력하는 부분
 
 for code_addr in sorted(decompiled_info.c_code_dict.keys()):
     print "%08x :"%code_addr, decompiled_info.c_code_dict[code_addr]
-
-
-###################
-# dcmp= decompiled_info = Decompile(asm_str, addr_instruct_dict,addr_list)

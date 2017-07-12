@@ -198,13 +198,9 @@ class Decompile:
                         break
 
                     if var_init.match(GetDisasm(asm_addr).split(",")[1].strip()): # 확정값을 넣는 부분을 찾으면 그 값으로 초기화하는 코드를 구현
-                        value = GetDisasm(asm_addr).split(",")[1].strip()
-                        if value[-1] == 'h':
-                            for i in range (8-len(value)+1):
-                                value='0'+value
-                            value = '0x' + value[:-1]
-                        self.variable_init_instruction.append(var+" = "+value+";")
-                        self.c_code_dict[asm_addr] = var+" = "+value+";"
+                        value = GetOperandValue(asm_addr,1)
+                        self.variable_init_instruction.append(var+" = "+hex(value)+";")
+                        self.c_code_dict[asm_addr] = var+" = "+hex(value)+";"
                         
                         check = True
                         break
@@ -212,7 +208,7 @@ class Decompile:
 
             if check == False:  # 변수가 많은 경우에는 이런 구현이 문제가 될 수 있습니다.
                 self.variable_init_instruction.append(var+";")
-                self.assembly_dict[addr_list[0]+amount_of_var_init] = var+" = "+value+";"
+                self.assembly_dict[addr_list[0]+amount_of_var_init] = var+" = "+hex(value)+";"
                 amount_of_var_init +=1
                 
 

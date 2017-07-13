@@ -94,6 +94,14 @@ class Decompile:
                             tmp[GetOpnd(addr,0)] = tmp[GetOpnd(addr,0)]+self.calc_dict[GetMnem(addr)]+tmp[GetOpnd(addr,1)]
                         elif GetOpnd(addr,1) in var:
                             tmp[GetOpnd(addr,0)] = tmp[GetOpnd(addr,0)]+self.calc_dict[GetMnem(addr)]+var[GetOpnd(addr,1)]
+                elif GetMnem(addr) == "lea":
+                    if GetOpType(addr) == 4:
+                        tmp[GetOpnd(addr,0)] = "&"+var[GetOpnd(addr,1)].replace("[ebp+",'').replace(']','')
+                    if GetOpType(addr,1) == 1: # {calc} reg, reg
+                        if GetOpnd(addr,1) in tmp:
+                            tmp[GetOpnd(addr,0)] = "&"+tmp[GetOpnd(addr,1)].replace("[ebp+",'').replace(']','')
+                        elif GetOpnd(addr,1) in var:
+                            tmp[GetOpnd(addr,0)] = "&"+tmp[GetOpnd(addr,0)]+self.calc_dict[GetMnem(addr)]""+var[GetOpnd(addr,1)].replace("[ebp+",'').replace(']','')
         return var,tmp
 
 # for code_line in decompiled_info.c_code:
@@ -152,6 +160,7 @@ class Decompile:
         self.c_code_dict[func_addr_list[0]-1] = "int "+func_name+"("+str(self.foo_param).replace("[","").replace("]","").replace("'","")+"){"
         self.c_code_dict[func_addr_list[-1]-1] = "}"
         var, tmp = self.calc_loop(func_addr_list,self.foo_param)
+        print tmp, var 
         self.c_code_dict[func_addr_list[-1]-2] = 'return '+tmp['eax'].replace('int ','')+';'
 
     def decom_call(self):

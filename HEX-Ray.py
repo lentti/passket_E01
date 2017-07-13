@@ -63,7 +63,90 @@ class Decompile:
         self.library_function = []
         self.variable = []
         self.variable_init_instruction = []
+        self.calc_dict = {"sub":"-","add":"+","and":"&","or":"|","xor":"^","imul":"*"}
 
+    def calc_loop(self,addr_list,param = [], var = {}):
+        tmp = {}
+        log = []
+        for addr in addr_list:
+            if len(param) > 0  and (len(param) > len(var)) :
+                if GetOpnd(addr,1) == 'edi':
+                    var[GetOpnd(addr,0)] = param[0]
+                if GetOpnd(addr,1) == 'esi':
+                    var[GetOpnd(addr,0)]  = param[1]
+                if GetOpnd(addr,1) == 'edx':
+                    var[GetOpnd(addr,0)]  = param[2]
+            elif GetOpType(addr,0) == 1:
+                
+                if GetMnem(addr) == 'mov':
+                    if GetOpType(addr,1) == 4: # mov reg, variable
+                        tmp[GetOpnd(addr,0)] = var[GetOpnd(addr,1)]
+                    if GetOpType(addr,1) == 1: # mov reg, reg
+                        if GetOpnd(addr,1) in tmp:
+                            tmp[GetOpnd(addr,0)] = tmp[GetOpnd(addr,1)]
+                        elif GetOpnd(addr,1) in var:
+                            tmp[GetOpnd(addr,0)] = var[GetOpnd(addr,1)]
+                elif GetMnem(addr) in self.calc_dict:
+                    if GetOpType(addr,1) == 4: # {calc} reg, variable
+                        tmp[GetOpnd(addr,0)] = tmp[GetOpnd(addr,0)]+self.calc_dict[GetMnem(addr)]+var[GetOpnd(addr,1)]
+                    if GetOpType(addr,1) == 1: # {calc} reg, reg
+                        if GetOpnd(addr,1) in tmp:
+                            tmp[GetOpnd(addr,0)] = tmp[GetOpnd(addr,0)]+self.calc_dict[GetMnem(addr)]+tmp[GetOpnd(addr,1)]
+                        elif GetOpnd(addr,1) in var:
+                            tmp[GetOpnd(addr,0)] = tmp[GetOpnd(addr,0)]+self.calc_dict[GetMnem(addr)]+var[GetOpnd(addr,1)]
+                elif GetMnem(addr) == "lea":
+                    if GetOpType(addr,1) == 4:
+                        tmp[GetOpnd(addr,0)] = "&"+var[GetOpnd(addr,1)]
+                    if GetOpType(addr,1) == 1: # {calc} reg, reg
+                        if GetOpnd(addr,1) in tmp:
+                            tmp[GetOpnd(addr,0)] = "&"+tmp[GetOpnd(addr,1)]
+                        elif GetOpnd(addr,1) in var:
+                            tmp[GetOpnd(addr,0)] = "&"+var[GetOpnd(addr,1)]
+            elif GetOpType(addr,0) == 4: # variable
+                if GetMnem(addr) == 'mov':
+                    if GetOpType(addr,1) == 4: # mov variable, variable
+                        var[GetOpnd(addr,0)] = var[GetOpnd(addr,1)]
+                        log.append(GetOpnd(addr,0).replace("[ebp+","").replace("]","") + " = " + var[GetOpnd(addr,0)])
+                        var[GetOpnd(addr,0)] = GetOpnd(addr,0).replace("[ebp+","").replace("]","")
+                    if GetOpType(addr,1) == 1: # mov variable, reg
+                        if GetOpnd(addr,1) in tmp:
+                            var[GetOpnd(addr,0)] = tmp[GetOpnd(addr,1)]
+                            log.append(GetOpnd(addr,0).replace("[ebp+","").replace("]","") + " = " + var[GetOpnd(addr,0)])
+                            var[GetOpnd(addr,0)] = GetOpnd(addr,0).replace("[ebp+","").replace("]","")
+                        elif GetOpnd(addr,1) in var:
+                            var[GetOpnd(addr,0)] = var[GetOpnd(addr,1)]
+                            log.append(GetOpnd(addr,0).replace("[ebp+","").replace("]","") + " = " + var[GetOpnd(addr,0)])
+                            var[GetOpnd(addr,0)] = GetOpnd(addr,0).replace("[ebp+","").replace("]","")
+                elif GetMnem(addr) in self.calc_dict:
+                    if GetOpType(addr,1) == 4: # {calc} variable, variable
+                        var[GetOpnd(addr,0)] = var[GetOpnd(addr,0)]+self.calc_dict[GetMnem(addr)]+var[GetOpnd(addr,1)]
+                        log.append(GetOpnd(addr,0).replace("[ebp+","").replace("]","") + " = " + var[GetOpnd(addr,0)])
+                        var[GetOpnd(addr,0)] = GetOpnd(addr,0).replace("[ebp+","").replace("]","")
+                    if GetOpType(addr,1) == 1: # {calc} variable, reg
+                        if GetOpnd(addr,1) in tmp:
+                            var[GetOpnd(addr,0)] = var[GetOpnd(addr,0)]+self.calc_dict[GetMnem(addr)]+tmp[GetOpnd(addr,1)]
+                            log.append(GetOpnd(addr,0).replace("[ebp+","").replace("]","") + " = " + var[GetOpnd(addr,0)])
+                            var[GetOpnd(addr,0)] = GetOpnd(addr,0).replace("[ebp+","").replace("]","")
+                        elif GetOpnd(addr,1) in var:
+                            var[GetOpnd(addr,0)] = var[GetOpnd(addr,0)]+self.calc_dict[GetMnem(addr)]+var[GetOpnd(addr,1)]
+                            log.append(GetOpnd(addr,0).replace("[ebp+","").replace("]","") + " = " + var[GetOpnd(addr,0)])
+                            var[GetOpnd(addr,0)] = GetOpnd(addr,0).replace("[ebp+","").replace("]","")
+                elif GetMnem(addr) == "lea":
+                    if GetOpType(addr,1) == 4:
+                        var[GetOpnd(addr,0)] = "&"+var[GetOpnd(addr,1)]
+                        log.append(GetOpnd(addr,0).replace("[ebp+","").replace("]","") + " = " + var[GetOpnd(addr,0)])
+                        var[GetOpnd(addr,0)] = GetOpnd(addr,0).replace("[ebp+","").replace("]","")
+                    if GetOpType(addr,1) == 1: # {calc} reg, reg
+                        if GetOpnd(addr,1) in tmp:
+                            var[GetOpnd(addr,0)] = "&"+tmp[GetOpnd(addr,1)]
+                            log.append(GetOpnd(addr,0).replace("[ebp+","").replace("]","") + " = " + var[GetOpnd(addr,0)])
+                            var[GetOpnd(addr,0)] = GetOpnd(addr,0).replace("[ebp+","").replace("]","")
+                        elif GetOpnd(addr,1) in var:
+                            var[GetOpnd(addr,0)] = "&"+var[GetOpnd(addr,1)]
+                            log.append(GetOpnd(addr,0).replace("[ebp+","").replace("]","") + " = " + var[GetOpnd(addr,0)])
+                            var[GetOpnd(addr,0)] = GetOpnd(addr,0).replace("[ebp+","").replace("]","")
+
+        return var,tmp,log
 
     def make_shape_of_main(self): # 디컴파일 작업 맨 마지막 부분에 할 것
         loop_cnt = len(self.addr_list)
@@ -277,7 +360,7 @@ class Decompile:
         var_init = re.compile("[0-9].*")
         var_noninit = re.compile("[^0-9].*")
         amount_of_var_init = 0
-        
+        pick = 0
         for var in self.variable:
             for asm_addr in self.addr_list:
                 check = False
@@ -286,15 +369,14 @@ class Decompile:
                     if var_noninit.match(GetDisasm(asm_addr).split(",")[1].strip()): # 값을 넣긴 하지만 확정값이 아니라면 초기화만
                         self.variable_init_instruction.append(var+";")
                         self.c_code_dict[asm_addr] = var+";"
-                        
                         check = True
                         break
-
+                    
                     if var_init.match(GetDisasm(asm_addr).split(",")[1].strip()): # 확정값을 넣는 부분을 찾으면 그 값으로 초기화하는 코드를 구현
                         value = GetDisasm(asm_addr).split(",")[1].strip()
                         self.variable_init_instruction.append(var+" = "+value+";")
                         self.c_code_dict[asm_addr] = var+" = "+value+";"
-                        
+                        pick = asm_addr
                         check = True
                         break
 
@@ -303,9 +385,19 @@ class Decompile:
                 self.variable_init_instruction.append(var+";")
                 self.assembly_dict[addr_list[0]+amount_of_var_init] = var+" = "+value+";"
                 amount_of_var_init +=1
-                
+        addr_list_ = []
+        pick2 = pick
+        while GetMnem(pick) != 'sub' and GetOpnd(pick,0) != 'esp':
+            addr_list_.append(pick)
+            pick = NextHead(pick)
+        var1 = {w.replace('var',"[ebp+var")+"]":w for w in self.variable}
+        res,tmp,log = self.calc_loop(addr_list_,var=var1)
+        for i in range(0,len(log)):
+            self.variable_init_instruction.append(log[i])
+        self.c_code += self.variable_init_instruction
 
-        self.c_code += self.variable_init_instruction        
+
+
 
 
 ########################실제로 기능을 하는 부분 ######### 클래스와 함수 선언 종료.
@@ -367,6 +459,7 @@ decompiled_info.make_shape_of_main() #
 
 for code_line in decompiled_info.c_code: # 한줄 한줄 출력하는 부분
     print code_line
-
+'''
 for code_addr in sorted(decompiled_info.c_code_dict.keys()):
     print "%08x :"%code_addr, decompiled_info.c_code_dict[code_addr]
+'''
